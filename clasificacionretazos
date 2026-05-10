@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clasificador de Retazos para Upcycling</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-5xl mx-auto">
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <div class="inline-flex items-center justify-center p-3 bg-emerald-100 rounded-full mb-4 text-emerald-600">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+            </div>
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900 mb-2">Clasificador de Retazos Textiles</h1>
+            <p class="text-slate-500">Sistema de inventario para Upcycling y moda sostenible</p>
+        </header>
+
+        <!-- Paso 1: Configuración de la sesión -->
+        <section id="step1" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8 fade-in">
+            <h2 class="text-xl font-semibold mb-4 text-slate-800 border-b pb-2">1. Configurar Sesión o Cargar Archivo</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Opción Manual -->
+                <div class="border-b md:border-b-0 md:border-r md:pr-8 pb-6 md:pb-0 border-slate-100">
+                    <h3 class="text-lg font-medium text-slate-700 mb-3">Opción A: Ingreso Manual</h3>
+                    <label for="numRetazos" class="block text-sm font-medium text-slate-600 mb-1">¿Cuántos retazos desea clasificar?</label>
+                    <div class="flex gap-2">
+                        <input type="number" id="numRetazos" min="1" max="50" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition" placeholder="Ej: 5">
+                        <button onclick="generarFormularios()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg transition shadow-sm whitespace-nowrap">
+                            Continuar
+                        </button>
+                    </div>
+                    <p id="errorStep1" class="text-red-500 text-sm mt-2 hidden">Por favor, ingrese un número válido mayor a 0.</p>
+                </div>
+
+                <!-- Opción Excel -->
+                <div>
+                    <h3 class="text-lg font-medium text-slate-700 mb-3">Opción B: Cargar desde Excel/CSV</h3>
+                    <p class="text-xs text-slate-500 mb-3">Tu archivo debe tener las columnas: <strong>Tipo de Tela, Color, Cantidad, Ancho, Largo y Área Total</strong>.</p>
+                    <div class="relative border-2 border-dashed border-emerald-300 rounded-lg p-6 text-center hover:bg-emerald-50 transition bg-emerald-50/30">
+                        <input type="file" id="fileUpload" accept=".xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="procesarArchivoExcel(event)">
+                        <div class="text-emerald-700 flex flex-col items-center pointer-events-none">
+                            <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                            <span class="font-medium text-sm">Haz clic o arrastra tu archivo aquí</span>
+                        </div>
+                    </div>
+                    <p id="excelError" class="text-red-500 text-sm mt-2 hidden"></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Paso 2: Formularios dinámicos de retazos -->
+        <section id="step2" class="hidden mb-8 fade-in">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <h2 class="text-xl font-semibold mb-4 text-slate-800 border-b pb-2 flex justify-between items-center">
+                    <span>2. Detalles de los Materiales</span>
+                    <span id="badgeContador" class="bg-emerald-100 text-emerald-800 text-sm py-1 px-3 rounded-full font-medium">0 Retazos</span>
+                </h2>
+                
+                <!-- Contenedor donde se inyectarán los formularios usando JS -->
+                <div id="contenedorFormularios" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                    <!-- Los items se generan dinámicamente -->
+                </div>
+
+                <div class="flex justify-end border-t pt-4">
+                    <button onclick="clasificarInventario()" class="bg-slate-800 hover:bg-slate-900 text-white font-semibold py-3 px-8 rounded-lg transition shadow-md w-full md:w-auto flex justify-center items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                        Procesar y Clasificar Inventario
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Paso 3: Resultados y Exportación -->
+        <section id="step3" class="hidden fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <!-- Tarjeta de Resumen -->
+                <div class="bg-emerald-600 text-white p-6 rounded-2xl shadow-lg flex flex-col justify-center items-center text-center">
+                    <h3 class="text-emerald-100 font-medium mb-2">Materiales Aptos</h3>
+                    <div class="text-5xl font-bold mb-2" id="resumenAptos">0</div>
+                    <p class="text-sm text-emerald-50">Cojines y Accesorios Pequeños</p>
+                    <div class="w-full h-px bg-emerald-500/50 my-4"></div>
+                    <p class="text-sm">Total procesado: <span id="resumenTotal" class="font-bold">0</span></p>
+                </div>
+
+                <!-- Tabla de Resultados -->
+                <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+                    <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
+                        <h3 class="font-semibold text-slate-800">Registro de Clasificación</h3>
+                        <div class="flex gap-2">
+                            <!-- Botones Exportar -->
+                            <button onclick="exportarCSV()" class="text-xs bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 py-1.5 px-3 rounded flex items-center gap-1 transition">
+                                CSV
+                            </button>
+                            <button onclick="exportarJSON()" class="text-xs bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 py-1.5 px-3 rounded flex items-center gap-1 transition">
+                                JSON
+                            </button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto flex-1 p-0">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs text-slate-500 bg-slate-50/50 uppercase">
+                                <tr>
+                                    <th class="px-4 py-3">ID</th>
+                                    <th class="px-4 py-3">Detalles</th>
+                                    <th class="px-4 py-3">Dimensiones</th>
+                                    <th class="px-4 py-3">Material</th>
+                                    <th class="px-4 py-3">Clasificación Final</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaResultados" class="divide-y divide-slate-100">
+                                <!-- Filas inyectadas por JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center">
+                <button onclick="reiniciarSesion()" class="text-slate-500 hover:text-slate-800 underline text-sm transition">Iniciar una nueva sesión</button>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // Variables globales para almacenar los datos (equivalente a la lista en Python)
+        let inventarioGlobal = [];
+        let numRetazosGlobal = 0;
+
+        /**
+         * Función para generar los formularios dinámicamente
+         * Se ejecuta al hacer clic en "Continuar" del Paso 1
+         */
+        function generarFormularios() {
+            const inputNum = document.getElementById('numRetazos').value;
+            const errorMsg = document.getElementById('errorStep1');
+            
+            numRetazosGlobal = parseInt(inputNum);
+
+            // Validación básica
+            if (isNaN(numRetazosGlobal) || numRetazosGlobal <= 0) {
+                errorMsg.classList.remove('hidden');
+                return;
+            }
+            
+            errorMsg.classList.add('hidden');
+            document.getElementById('badgeContador').innerText = `${numRetazosGlobal} Retazos`;
+
+            const contenedor = document.getElementById('contenedorFormularios');
+            contenedor.innerHTML = ''; // Limpiar contenedor previo
+
+            // USO DE CICLO FOR: Creamos 'N' formularios dinámicamente según lo solicitado
+            for (let i = 1; i <= numRetazosGlobal; i++) {
+                const formHTML = `
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 relative group hover:border-emerald-300 transition">
+                        <div class="absolute -top-3 -left-3 bg-slate-800 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-md">
+                            #${i}
+                        </div>
+                        <div class="mt-2 space-y-3">
+                            <div class="flex gap-3">
+                                <div class="w-1/2">
+                                    <label class="block text-xs font-medium text-slate-500 mb-1">Ancho (cm)</label>
+                                    <input type="number" id="ancho-${i}" step="0.1" min="0.1" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 outline-none" placeholder="Ej: 45">
+                                </div>
+                                <div class="w-1/2">
+                                    <label class="block text-xs font-medium text-slate-500 mb-1">Largo (cm)</label>
+                                    <input type="number" id="largo-${i}" step="0.1" min="0.1" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 outline-none" placeholder="Ej: 45">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 mb-1">Material</label>
+                                <select id="material-${i}" class="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:ring-1 focus:ring-emerald-500 outline-none bg-white">
+                                    <option value="natural">Natural</option>
+                                    <option value="sintetico">Sintético</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                contenedor.innerHTML += formHTML;
+            }
+
+            // Ocultar paso 1, mostrar paso 2
+            document.getElementById('step1').classList.add('hidden');
+            document.getElementById('step2').classList.remove('hidden');
+        }
+
+        /**
+         * Función principal de lógica de negocio
+         */
+        function clasificarInventario() {
+            // Reiniciar variables
+            inventarioGlobal = [];
+            let materialesAptosCount = 0;
+            let validacionExitosa = true;
+
+            // 1. USO DE CICLO FOR para procesar cada formulario generado
+            for (let i = 1; i <= numRetazosGlobal; i++) {
+                const inputAncho = document.getElementById(`ancho-${i}`);
+                const inputLargo = document.getElementById(`largo-${i}`);
+                const selectMaterial = document.getElementById(`material-${i}`);
+                
+                const ancho = parseFloat(inputAncho.value);
+                const largo = parseFloat(inputLargo.value);
+                const material = selectMaterial.value;
+
+                // Validación de campos vacíos
+                if (isNaN(ancho) || ancho <= 0 || isNaN(largo) || largo <= 0) {
+                    inputAncho.classList.add('border-red-500');
+                    inputLargo.classList.add('border-red-500');
+                    validacionExitosa = false;
+                    continue;
+                } else {
+                    inputAncho.classList.remove('border-red-500');
+                    inputLargo.classList.remove('border-red-500');
+                }
+
+                let clasificacion = "";
+                let esApto = false;
+
+                // 2. LÓGICA BIDIMENSIONAL (IF ANIDADOS MEJORADOS)
+                if (material === "natural") {
+                    // Verificamos que AMBOS lados sean mayores a 20
+                    if (ancho > 20 && largo > 20) {
+                        clasificacion = "Apto para Cojín";
+                        esApto = true;
+                    } else if (ancho >= 10 && largo >= 10) {
+                        clasificacion = "Apto para Accesorio Pequeño";
+                        esApto = true;
+                    } else {
+                        clasificacion = "Material para Relleno";
+                    }
+                } else {
+                    // EXCEPCIÓN: Si es sintético pero es muy grande (ej: 40x40 o más), se rescata
+                    if (ancho >= 40 && largo >= 40) {
+                        clasificacion = "Apto para Cojín (Sintético)";
+                        esApto = true;
+                    } else {
+                        clasificacion = "Material para Relleno";
+                    }
+                }
+
+                // Contamos materiales aptos
+                if (esApto) {
+                    materialesAptosCount++;
+                }
+
+                // Guardar en inventario
+                inventarioGlobal.push({
+                    id_retazo: i,
+                    tipo_tela: material === 'natural' ? 'Algodón (Manual)' : 'Poliéster (Manual)',
+                    color: 'N/A',
+                    cantidad: 1,
+                    ancho: ancho,
+                    largo: largo,
+                    area_total: ancho * largo,
+                    medida_cm: Math.min(ancho, largo), // El lado más corto limita el uso
+                    material_categoria: material === 'natural' ? 'Natural' : 'Sintético',
+                    clasificacion: clasificacion,
+                    es_apto: esApto
+                });
+            }
+
+            // Si faltó algún dato, no avanzamos
+            if (!validacionExitosa) {
+                alert("Por favor, complete todas las medidas (ancho y largo) correctamente con valores mayores a 0.");
+                return;
+            }
+
+            // Actualizar UI con resultados
+            mostrarResultados(materialesAptosCount);
+        }
+
+        /**
+         * Función para inyectar los datos en el HTML del Paso 3
+         */
+        function mostrarResultados(conteoAptos) {
+            document.getElementById('resumenAptos').innerText = conteoAptos;
+            document.getElementById('resumenTotal').innerText = inventarioGlobal.reduce((acc, item) => acc + item.cantidad, 0);
+
+            const tbody = document.getElementById('tablaResultados');
+            tbody.innerHTML = ''; // Limpiar tabla
+
+            // Poblar tabla
+            inventarioGlobal.forEach(item => {
+                const badgeColor = item.es_apto ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800';
+                const icon = item.es_apto ? '✓' : '⚠';
+
+                const tr = `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-4 py-3 font-medium">#${item.id_retazo}</td>
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-slate-800 capitalize">${item.tipo_tela}</div>
+                            <div class="text-xs text-slate-500">Color: ${item.color} | Cant: ${item.cantidad}</div>
+                        </td>
+                        <td class="px-4 py-3 text-slate-600">
+                            ${item.ancho} x ${item.largo} cm<br>
+                            <span class="text-xs text-slate-400">Área: ${item.area_total} cm²</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700">
+                                ${item.material_categoria}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${badgeColor}">
+                                ${icon} ${item.clasificacion}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += tr;
+            });
+
+            // Mostrar Paso 3 y ocultar Paso 2
+            document.getElementById('step2').classList.add('hidden');
+            document.getElementById('step3').classList.remove('hidden');
+        }
+
+        /**
+         * Exportar a CSV usando JS Blob (Equivalente al módulo csv de Python)
+         */
+        function exportarCSV() {
+            if (inventarioGlobal.length === 0) return;
+            
+            // Cabeceras actualizadas
+            const headers = ["id_retazo", "tipo_tela", "color", "cantidad", "ancho_cm", "largo_cm", "area_total", "categoria_material", "medida_evaluada_cm", "clasificacion"];
+            let csvContent = headers.join(",") + "\n";
+
+            // Filas
+            inventarioGlobal.forEach(item => {
+                let row = [
+                    item.id_retazo, 
+                    `"${item.tipo_tela}"`, 
+                    `"${item.color}"`, 
+                    item.cantidad, 
+                    item.ancho, 
+                    item.largo, 
+                    item.area_total, 
+                    item.material_categoria, 
+                    item.medida_cm, 
+                    `"${item.clasificacion}"`
+                ];
+                csvContent += row.join(",") + "\n";
+            });
+
+            // Crear archivo descargable
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            descargarArchivo(blob, 'inventario_retazos.csv');
+        }
+
+        /**
+         * Exportar a JSON usando JS Blob (Equivalente al módulo json de Python)
+         */
+        function exportarJSON() {
+            if (inventarioGlobal.length === 0) return;
+            
+            // Remover el flag visual 'es_apto' para la exportación final si se desea, o dejarlo.
+            const dataStr = JSON.stringify(inventarioGlobal, null, 4);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            descargarArchivo(blob, 'inventario_retazos.json');
+        }
+
+        /**
+         * Helper para descargar archivos en el navegador
+         */
+        function descargarArchivo(blob, filename) {
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        /**
+         * Reiniciar toda la aplicación
+         */
+        function reiniciarSesion() {
+            document.getElementById('numRetazos').value = '';
+            document.getElementById('fileUpload').value = ''; // Limpiar el input del archivo
+            document.getElementById('excelError').classList.add('hidden');
+            document.getElementById('step3').classList.add('hidden');
+            document.getElementById('step2').classList.add('hidden');
+            document.getElementById('step1').classList.remove('hidden');
+            inventarioGlobal = [];
+            numRetazosGlobal = 0;
+            // Scroll hacia arriba
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function procesarArchivoExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const errorMsg = document.getElementById('excelError');
+            errorMsg.classList.add('hidden');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (jsonData.length === 0) {
+                        throw new Error("El archivo está vacío o no tiene el formato correcto.");
+                    }
+
+                    inventarioGlobal = [];
+                    let materialesAptosCount = 0;
+
+                    // Telas naturales comunes para clasificación automática
+                    const telasNaturales = ['algodon', 'lino', 'seda', 'lana', 'yute', 'canamo', 'bambu', 'cuero', 'natural'];
+
+                    // Iterar sobre cada fila del Excel
+                    jsonData.forEach((row, index) => {
+                        const keys = Object.keys(row);
+                        
+                        // Buscar dinámicamente las columnas (ignora mayúsculas y acentos)
+                        const keyTela = keys.find(k => k.toLowerCase().includes('tela') || k.toLowerCase().includes('material'));
+                        const keyColor = keys.find(k => k.toLowerCase().includes('color'));
+                        const keyCantidad = keys.find(k => k.toLowerCase().includes('cantidad') || k.toLowerCase().includes('cant'));
+                        const keyAncho = keys.find(k => k.toLowerCase().includes('ancho'));
+                        const keyLargo = keys.find(k => k.toLowerCase().includes('largo'));
+                        const keyArea = keys.find(k => k.toLowerCase().includes('area') || k.toLowerCase().includes('área'));
+
+                        if (!keyTela || (!keyAncho && !keyLargo)) {
+                            throw new Error("Asegúrate de que el archivo tenga columnas para 'Tipo de tela', 'Ancho' y 'Largo'.");
+                        }
+
+                        // Extraer valores
+                        const tipoTela = String(row[keyTela] || "Desconocida").trim();
+                        const color = String(row[keyColor] || "Sin especificar").trim();
+                        const cantidad = parseInt(row[keyCantidad]) || 1;
+                        const ancho = parseFloat(row[keyAncho]) || 0;
+                        const largo = parseFloat(row[keyLargo]) || 0;
+                        const areaTotal = parseFloat(row[keyArea]) || (ancho * largo);
+
+                        // Limpiar texto de material para categorizar natural/sintético
+                        let telaNormalizada = tipoTela.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        
+                        // ¿Es natural o sintético?
+                        let esNatural = telasNaturales.some(t => telaNormalizada.includes(t));
+                        let materialCategoria = esNatural ? 'natural' : 'sintetico';
+
+                        let clasificacion = "";
+                        let esApto = false;
+
+                        // Lógica de Clasificación Mejorada (Bidimensional) para Excel
+                        if (materialCategoria === "natural") {
+                            if (ancho > 20 && largo > 20) {
+                                clasificacion = "Apto para Cojín";
+                                esApto = true;
+                            } else if (ancho >= 10 && largo >= 10) {
+                                clasificacion = "Apto para Accesorio Pequeño";
+                                esApto = true;
+                            } else {
+                                clasificacion = "Material para Relleno";
+                            }
+                        } else {
+                            // Excepción: Si es sintético pero tiene muy buen tamaño (>= 40x40)
+                            if (ancho >= 40 && largo >= 40) {
+                                clasificacion = "Apto para Cojín (Sintético)";
+                                esApto = true;
+                            } else {
+                                clasificacion = "Material para Relleno";
+                            }
+                        }
+
+                        if (esApto) {
+                            materialesAptosCount += cantidad; // Sumamos basado en la cantidad
+                        }
+
+                        inventarioGlobal.push({
+                            id_retazo: index + 1,
+                            tipo_tela: tipoTela,
+                            color: color,
+                            cantidad: cantidad,
+                            ancho: ancho,
+                            largo: largo,
+                            area_total: areaTotal,
+                            medida_cm: Math.min(ancho, largo), // Dimensión limitante
+                            material_categoria: esNatural ? 'Natural' : 'Sintético',
+                            clasificacion: clasificacion,
+                            es_apto: esApto
+                        });
+                    });
+
+                    if (inventarioGlobal.length === 0) {
+                        throw new Error("No se encontraron filas con datos válidos.");
+                    }
+
+                    numRetazosGlobal = inventarioGlobal.length;
+                    
+                    document.getElementById('step1').classList.add('hidden');
+                    document.getElementById('step2').classList.add('hidden');
+                    mostrarResultados(materialesAptosCount);
+                    
+                } catch (error) {
+                    errorMsg.innerText = error.message;
+                    errorMsg.classList.remove('hidden');
+                }
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+    </script>
+</body>
+</html>
